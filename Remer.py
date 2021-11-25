@@ -1,9 +1,7 @@
 import openpyxl  # для работы с эксель
-import xml.etree.ElementTree as ET
-import re
-import requests
-from bs4 import BeautifulSoup
 import time
+from Pars_sanremer import get_link, get_content
+from Request import get_response, get_html
 
 start_time = time.time()
 excel_f = 'remer.xlsx'  # Передаем файл ексель
@@ -36,44 +34,13 @@ def read_excel(excel_file):  # Читаем нужные колонки в ек�
     return list_product
 
 
-def get_html(url, param=None):  # Получаем реквест страницы
-    r = requests.get(url, headers=HEADERS, params=param)  # Делаем запрос и сохраняем его
-    return r  # возвращаем запрос
-
-
-def get_response(request):
-    response_html = request.text
-    if request.status_code == 200:
-        return response_html
-    else:
-        return None
-
-
-def get_link(response_html):
-    soup = BeautifulSoup(response_html, 'html.parser')
-
-    items = soup.find_all('div', class_='right-block')
-    if items:
-        link = items[0].find('a', class_='product-name').get('href')
-        return link
-    else:
-        link = None
-        return link
-
-
-def get_content(link):
-    request = get_html(link)
-    response = get_response(request)
-
-    soup = BeautifulSoup(response, 'html.parser')
-
-    items = soup.find('div', class_='rte').text
-    print(items)
-    return items
+def script_execution_time():
+    runtime = time.time() - start_time
+    print(f"[INFO] Время выполения: {'{0:.2f}'.format(runtime)}c.")
 
 
 def create_content(description, name):
-    end = f'<p>Купить {name[0].lower() + name[1:]} в оригинальной сборке и с официальной гарантией от производителя ' \
+    end = f'<p>Купить {name[0].lower() + name[1:]}в оригинальной сборке и с официальной гарантией от производителя ' \
           f'можно онлайн в нашем  интернет-магазине и получить товар в любом городе Украины. ' \
           'Также возможен самовывоз.</p>'
     content = f'<p>{description}</p> {end}'
@@ -90,7 +57,7 @@ def recording_on_file(produkts, file):
         row += 1
 
     file_xl.save(f'Обработан_{file}')
-    print(f'Запись завершена. \nФайл сохранен: "Обработан_{file}"')
+    print(f'\nЗапись завершена. \nФайл сохранен: "Обработан_{file}"')
 
 
 produkts = read_excel(excel_f)
@@ -98,25 +65,35 @@ produkts = read_excel(excel_f)
 
 n = 0
 for product in produkts:
-    #   print(product)
+    #   print('[TEST]', product)
     art = product.get('art')
-    #   print(art)
-    print(f'[INFO] Поиск товара {n}:')
+    #   print('[TEST]', art)
+    print(f'[INFO] Поиск товара {n}...')
 
     url = HOST + 'search?&search_query=' + art  # собираем ссылку по которой будет запрос
+    #   print('[TEST]', url)
 
-    request = get_html(url)
+    request = get_html(url, HEADERS)
+    #   print('[TEST]', request.text)
+
     response = get_response(request)
+    #   print('[TEST]', response)
+
     link = get_link(response)
     product['link'] = link
     n += 1
+ 
     if link:
-        description = get_content(link)
+        description = get_content(link, HEADERS)
         product_name = product.get('name')
         content = create_content(description, product_name)
-        print(content)
+        if content:
+            print(f'\t[STATUS] OK')
+        #   print('[TEST]', content)
         product['content'] = content
+    else:
+        print(f'\t[STATUS] FAILED: no link.')
 recording_on_file(produkts, excel_f)
 
-#print(produkts)
-print(f'[INFO] Время выполения: {time.time() - start_time}c.')
+#   print('[TEST]', produkts)
+script_execution_time()
